@@ -92,15 +92,8 @@ jobs:
         with:
           tag_name: v${{ steps.publish_nativeaot.outputs.version }}
           name: doorbelld v${{ steps.publish_nativeaot.outputs.version }}
+          files: ${{ steps.publish_nativeaot.outputs.publish_dir }}/doorbelld
           body: |
             Automated release for doorbelld v${{ steps.publish_nativeaot.outputs.version }}.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ steps.publish_nativeaot.outputs.publish_dir }}/doorbelld
-          tag_name: v${{ steps.publish_nativeaot.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
