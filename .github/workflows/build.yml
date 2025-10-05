@@ -1,4 +1,6 @@
 name: Publish doorbelld (Linux x64 AOT)
+permissions:
+  contents: write
 
 on:
   push:
