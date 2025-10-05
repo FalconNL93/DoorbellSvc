@@ -2,7 +2,7 @@ name: Publish doorbelld (Linux x64 AOT)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
     tags: [ 'v*' ]
   workflow_dispatch:
 
@@ -11,18 +11,13 @@ env:
 
 jobs:
   publish-linux-x64-aot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # has clang/LLVM preinstalled
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install NativeAOT toolchain deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang lld zlib1g-dev ccache
-
-      # Cache the compiler output used by clang via ccache
+      # Cache ccache (speed up clang/lld relinks for NativeAOT)
       - name: Cache ccache
         uses: actions/cache@v4
         with:
@@ -45,14 +40,11 @@ jobs:
       - name: Restore (solution)
         run: dotnet restore DoorbellSvc.sln
 
-      # Adjust the csproj path below if your project file lives elsewhere.
       - name: Publish NativeAOT (linux-x64, single-file, self-contained)
         env:
-          # Speed up clang by routing through ccache
+          # Route clang via ccache; lld is the default linker on this image.
           CC: "ccache clang"
           CXX: "ccache clang++"
-          # Ensure lld is the linker used by clang
-          LD: "ld.lld"
         run: |
           dotnet publish ./DoorbellSvc/DoorbellSvc.csproj \
             -c Release \

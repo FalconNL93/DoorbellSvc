@@ -1,5 +1,10 @@
-﻿namespace DoorbellSvc;
+﻿using DoorbellSvc.Core;
 
+namespace DoorbellSvc;
+
+/// <summary>
+/// Entry point for the doorbell service application
+/// </summary>
 internal static class Program
 {
     private static void Main(string[] args)
@@ -7,21 +12,21 @@ internal static class Program
         if (!OperatingSystem.IsLinux())
         {
             Console.Error.WriteLine("This service can only run on Linux.");
-            return;
+            Environment.Exit(1);
         }
 
         Console.WriteLine("Starting Doorbell Service...");
-        var svc = new DoorbellService();
+
+        using var service = new DoorbellServiceHost();
 
         try
         {
-            svc.Run();
+            service.Run();
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            Console.Error.WriteLine($"Unable to start Doorbell Service: {e.Message}" +
-                                    $"{Environment.NewLine}{e}");
-            throw;
+            Console.Error.WriteLine($"Service error: {ex.Message}");
+            Environment.Exit(1);
         }
     }
 }
