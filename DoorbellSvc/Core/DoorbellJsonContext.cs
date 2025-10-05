@@ -7,8 +7,11 @@ namespace DoorbellSvc.Core;
 ///     JSON serialization context for AOT compilation
 /// </summary>
 [JsonSerializable(typeof(DoorbellMessage))]
-[JsonSerializable(typeof(object))]
-[JsonSerializable(typeof(Dictionary<string, object>))]
+[JsonSerializable(typeof(DoorbellResponse))]
+[JsonSerializable(typeof(SuccessResponse))]
+[JsonSerializable(typeof(ErrorResponse))]
+[JsonSerializable(typeof(PingResponse))]
+[JsonSerializable(typeof(PrewarmResponse))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = false,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

@@ -54,11 +54,19 @@ public sealed class DoorbellSocketServer : IDisposable
     {
         ThrowIfDisposed();
 
-        Directory.CreateDirectory("/run");
-
-        if (File.Exists(_configuration.SocketPath))
+        try
         {
-            File.Delete(_configuration.SocketPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(_configuration.SocketPath)!);
+
+            if (File.Exists(_configuration.SocketPath))
+            {
+                File.Delete(_configuration.SocketPath);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine("Unable to create socket path: " + e.Message);
+            Environment.Exit(-1);
         }
 
         var endpoint = new UnixDomainSocketEndPoint(_configuration.SocketPath);
@@ -203,7 +211,7 @@ public sealed class DoorbellSocketServer : IDisposable
         }
     }
 
-    private object HandlePlayCommand(DoorbellMessage message)
+    private DoorbellResponse HandlePlayCommand(DoorbellMessage message)
     {
         var fileName = Path.GetFileName(message.File ?? "");
         if (string.IsNullOrWhiteSpace(fileName) || !AudioFileManager.IsSafeFileName(fileName))
@@ -227,7 +235,7 @@ public sealed class DoorbellSocketServer : IDisposable
         }
     }
 
-    private object HandlePrewarmCommand(DoorbellMessage message)
+    private DoorbellResponse HandlePrewarmCommand(DoorbellMessage message)
     {
         var (total, built, upToDate, failed) = AudioFileManager.PrewarmCache(_configuration.SoundsDirectory,
             _configuration.CacheDirectory,
@@ -236,17 +244,17 @@ public sealed class DoorbellSocketServer : IDisposable
         return DoorbellResponses.PrewarmResult(total, built, upToDate, failed);
     }
 
-    private static void SendResponse(Socket socket, object response)
+    private static void SendResponse(Socket socket, DoorbellResponse response)
     {
         try
         {
-            var json = JsonSerializer.Serialize(response, typeof(object), DoorbellJsonContext.Default);
-            var data = Encoding.UTF8.GetBytes(json);
+            var json = JsonSerializer.Serialize(response, typeof(DoorbellResponse), DoorbellJsonContext.Default);
+            var data = Encoding.UTF8.GetBytes(json + "\n");
             socket.Send(data);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore send errors
+            BackgroundLogger.Info($"SendResponse error: {ex.Message}");
         }
     }
 

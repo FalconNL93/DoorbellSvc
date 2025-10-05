@@ -3,7 +3,7 @@
 namespace DoorbellSvc;
 
 /// <summary>
-/// Entry point for the doorbell service application
+///     Entry point for the doorbell service application
 /// </summary>
 internal static class Program
 {

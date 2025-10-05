@@ -1,0 +1,43 @@
+[Unit]
+Description=Doorbell audio daemon
+After=sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+User=doorbell
+Group=doorbell
+# ensure access to /dev/snd/*
+PrivateDevices=no
+# make sure the service actually has group 'audio'
+SupplementaryGroups=audio
+
+WorkingDirectory=/var/lib/doorbell
+ExecStartPre=/usr/bin/rm -f /run/doorbell/doorbell.sock
+# optional: wait up to ~4s for ALSA to show up
+ExecStartPre=/bin/sh -lc 'for i in $(seq 1 20); do test -e /dev/snd/controlC0 && exit 0; sleep 0.2; done; echo "No /dev/snd found" >&2; exit 1'
+ExecStart=/var/lib/doorbell/doorbelld
+
+# runtime socket dir under /run
+RuntimeDirectory=doorbell
+RuntimeDirectoryMode=0755
+
+# Reliability
+Restart=on-failure
+RestartSec=0.5
+
+# Hardening (kept, but adjusted)
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectClock=true
+PrivateTmp=true
+SystemCallArchitectures=native
+AmbientCapabilities=CAP_SYS_NICE
+LimitRTPRIO=50
+
+[Install]
+WantedBy=multi-user.target

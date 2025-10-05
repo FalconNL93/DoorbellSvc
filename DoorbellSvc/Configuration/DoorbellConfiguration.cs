@@ -7,30 +7,26 @@ namespace DoorbellSvc.Configuration;
 /// </summary>
 public sealed record DoorbellConfiguration
 {
-    // Audio constants
     public const int DefaultVolume = 80; // 0..200
     public const double MaxGainDb = 6.0; // clamp softvol gain
     public const uint SampleRate = 48000;
     public const uint Channels = 2; // stereo
     public const uint TargetLatencyUs = 50_000; // 50ms
 
-    // Safety caps
     public const int MaxJsonBytes = 64 * 1024;
     public const int MaxRepeat = 50;
     public const int MaxDelayMs = 60_000;
     public const int MaxWavBuffer = 192_000; // bytes
     public const long MaxWavSize = 25L * 1024 * 1024;
 
-    // Default paths
     public const string DefaultSoundsDir = "/var/lib/doorbell/sounds";
     public const string DefaultCacheDir = "/var/lib/doorbell/cache";
-    public const string DefaultPcmName = "doorbell_out"; // ALSA softvol PCM
+    public const string DefaultPcmName = "doorbell_out";
     public const string DefaultSoftvolCtrlName = "Doorbell Gain";
-    public const string DefaultSocketPath = "/run/doorbell.sock";
+    public const string DefaultSocketPath = "/run/doorbell/doorbell.sock";
     public const string DefaultLogDir = "/var/log/doorbelld";
     public const string LogFileName = "doorbelld.log";
 
-    // Instance properties - can be overridden via environment variables
     public required string SoundsDirectory { get; init; }
     public required string CacheDirectory { get; init; }
     public required string PcmName { get; init; }
