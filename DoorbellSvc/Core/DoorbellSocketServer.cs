@@ -31,6 +31,7 @@ public sealed class DoorbellSocketServer : IDisposable
             return;
         }
 
+        Console.WriteLine($"Shutting down socket server on {_configuration.SocketPath}");
         _disposed = true;
         _listenerSocket?.Dispose();
 
@@ -41,9 +42,9 @@ public sealed class DoorbellSocketServer : IDisposable
                 File.Delete(_configuration.SocketPath);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore cleanup errors
+            Console.Error.WriteLine($"Failed to delete socket file: {ex.Message}");
         }
     }
 
@@ -56,16 +57,25 @@ public sealed class DoorbellSocketServer : IDisposable
 
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_configuration.SocketPath)!);
+            var dir = Path.GetDirectoryName(_configuration.SocketPath)!;
+            Directory.CreateDirectory(dir);
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"Unable to create socket directory: {e.Message}");
+            Environment.Exit(-1);
+        }
 
+        try
+        {
             if (File.Exists(_configuration.SocketPath))
             {
                 File.Delete(_configuration.SocketPath);
             }
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            Console.Error.WriteLine("Unable to create socket path: " + e.Message);
+            Console.Error.WriteLine($"Unable to delete existing socket file: {ex.Message}");
             Environment.Exit(-1);
         }
 
@@ -73,7 +83,6 @@ public sealed class DoorbellSocketServer : IDisposable
         _listenerSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         _listenerSocket.Bind(endpoint);
 
-        // Set socket permissions for user and group access
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
         {
             try
@@ -82,14 +91,15 @@ public sealed class DoorbellSocketServer : IDisposable
                     UnixFileMode.UserRead | UnixFileMode.UserWrite |
                     UnixFileMode.GroupRead | UnixFileMode.GroupWrite);
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore if filesystem doesn't support Unix file modes
+                Console.Error.WriteLine($"Unable to set unix file mode: {ex.Message}");
             }
         }
 
         _listenerSocket.Listen(16);
 
+        Console.WriteLine($"Socket server running on {_configuration.SocketPath}");
         BackgroundLogger.Info($"daemon ready on {_configuration.SocketPath}");
         BackgroundLogger.Info($"PCM device: {_audioService.DeviceName}, card: {_configuration.CardIndex}");
     }
@@ -115,7 +125,6 @@ public sealed class DoorbellSocketServer : IDisposable
             }
             catch (ObjectDisposedException)
             {
-                // Server was disposed, exit gracefully
                 break;
             }
             catch (Exception ex)
@@ -155,7 +164,7 @@ public sealed class DoorbellSocketServer : IDisposable
             }
             catch
             {
-                // Ignore send errors
+                // ignore
             }
         }
     }

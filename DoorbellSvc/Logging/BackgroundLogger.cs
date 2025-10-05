@@ -33,7 +33,7 @@ public sealed class BackgroundLogger : IDisposable
         }
         catch
         {
-            // Ignore disposal errors
+            // ignore
         }
     }
 
@@ -94,7 +94,7 @@ public sealed class BackgroundLogger : IDisposable
         }
         catch
         {
-            // Ignore completion errors
+            // ignore
         }
 
         try
@@ -103,7 +103,7 @@ public sealed class BackgroundLogger : IDisposable
         }
         catch
         {
-            // Ignore join timeout
+            // ignore
         }
     }
 
@@ -119,7 +119,7 @@ public sealed class BackgroundLogger : IDisposable
         }
         catch
         {
-            // Ignore processing errors
+            // ignore
         }
         finally
         {
@@ -131,7 +131,7 @@ public sealed class BackgroundLogger : IDisposable
             }
             catch
             {
-                // Ignore cleanup errors
+                // ignore
             }
         }
     }
@@ -149,37 +149,30 @@ public sealed class BackgroundLogger : IDisposable
 
         var candidates = new List<string>();
 
-        // 1) Preferred system log directory
         if (!string.IsNullOrWhiteSpace(preferredLogDir))
         {
             candidates.Add(Path.Combine(preferredLogDir, DoorbellConfiguration.LogFileName));
         }
 
-        // 2) XDG State directory
         if (!string.IsNullOrWhiteSpace(xdgState))
         {
             candidates.Add(Path.Combine(xdgState, "doorbelld", DoorbellConfiguration.LogFileName));
         }
 
-        // 3) User's local state directory
         if (!string.IsNullOrWhiteSpace(home))
         {
             candidates.Add(Path.Combine(home, ".local", "state", "doorbelld", DoorbellConfiguration.LogFileName));
         }
 
-        // 4) XDG Cache directory
         if (!string.IsNullOrWhiteSpace(xdgCache))
         {
             candidates.Add(Path.Combine(xdgCache, "doorbelld", DoorbellConfiguration.LogFileName));
         }
 
-        // 5) Executable directory
         candidates.Add(Path.Combine(exeDir, "logs", DoorbellConfiguration.LogFileName));
 
-        // 6) Temporary directory with UID
         candidates.Add(Path.Combine("/tmp", $"doorbelld-{uid}", DoorbellConfiguration.LogFileName));
 
-        // Test each candidate for writability
         foreach (var path in candidates)
         {
             if (TryCreateLogFile(path))
@@ -188,7 +181,6 @@ public sealed class BackgroundLogger : IDisposable
             }
         }
 
-        // Last resort - current directory
         var fallback = Path.Combine(exeDir, DoorbellConfiguration.LogFileName);
         Directory.CreateDirectory(Path.GetDirectoryName(fallback)!);
         return fallback;

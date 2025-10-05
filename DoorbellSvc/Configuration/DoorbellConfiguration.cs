@@ -5,18 +5,18 @@ namespace DoorbellSvc.Configuration;
 /// <summary>
 ///     Configuration settings for the doorbell service
 /// </summary>
-public sealed record DoorbellConfiguration
+public sealed partial record DoorbellConfiguration
 {
-    public const int DefaultVolume = 80; // 0..200
-    public const double MaxGainDb = 6.0; // clamp softvol gain
+    public const int DefaultVolume = 80;
+    public const double MaxGainDb = 6.0;
     public const uint SampleRate = 48000;
-    public const uint Channels = 2; // stereo
-    public const uint TargetLatencyUs = 50_000; // 50ms
+    public const uint Channels = 2;
+    public const uint TargetLatencyUs = 50_000;
 
     public const int MaxJsonBytes = 64 * 1024;
     public const int MaxRepeat = 50;
     public const int MaxDelayMs = 60_000;
-    public const int MaxWavBuffer = 192_000; // bytes
+    public const int MaxWavBuffer = 192_000;
     public const long MaxWavSize = 25L * 1024 * 1024;
 
     public const string DefaultSoundsDir = "/var/lib/doorbell/sounds";
@@ -76,6 +76,6 @@ public sealed record DoorbellConfiguration
         return unchecked(Environment.UserName.GetHashCode());
     }
 
-    [DllImport("c")]
-    private static extern uint geteuid();
+    [LibraryImport("c")]
+    private static partial uint geteuid();
 }

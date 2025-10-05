@@ -1,3 +1,4 @@
+using DoorbellSvc.Audio;
 using DoorbellSvc.Configuration;
 using DoorbellSvc.Logging;
 
@@ -16,6 +17,11 @@ public sealed class DoorbellServiceHost : IDisposable
     public DoorbellServiceHost()
     {
         _configuration = DoorbellConfiguration.FromEnvironment();
+        // Prewarm audio cache at startup
+        AudioFileManager.PrewarmCache(_configuration.SoundsDirectory,
+            _configuration.CacheDirectory,
+            true // enable ffmpeg
+        );
         _audioService = new AudioPlaybackService(_configuration);
         _socketServer = new DoorbellSocketServer(_configuration, _audioService);
     }
@@ -45,10 +51,7 @@ public sealed class DoorbellServiceHost : IDisposable
 
         try
         {
-            // Start the socket server
             _socketServer.Start();
-
-            // Accept connections (this blocks until service is stopped)
             _socketServer.AcceptConnections();
         }
         catch (Exception ex)

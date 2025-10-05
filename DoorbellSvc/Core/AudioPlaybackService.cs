@@ -12,7 +12,7 @@ public sealed class AudioPlaybackService : IAudioPlaybackService
     private readonly DoorbellConfiguration _configuration;
     private readonly AudioMixer _mixer;
     private readonly PcmAudioPlayer _pcmPlayer;
-    private readonly object _playLock = new();
+    private readonly Lock _playLock = new();
     private bool _disposed;
     private bool _isBusy;
 
@@ -84,7 +84,6 @@ public sealed class AudioPlaybackService : IAudioPlaybackService
             throw new FileNotFoundException($"Sound not found: {baseFileName}", soundPath);
         }
 
-        // Determine the file to play (prefer cached WAV if available)
         var playPath = soundPath;
         if (!baseFileName.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
         {
@@ -96,20 +95,16 @@ public sealed class AudioPlaybackService : IAudioPlaybackService
             }
         }
 
-        // Configure audio levels
         var (mixerPercent, softvolDb) = AudioMixer.MapVolume(volume);
         _mixer.SetPlaybackDecibels(_configuration.SoftvolControlName, softvolDb);
         _mixer.SetPlaybackPercent("Master", mixerPercent);
         _mixer.SetPlaybackPercent("Speaker", mixerPercent);
 
-        // Play the audio file
         PlayWavFile(playPath, repeat, delayMs);
 
-        // Mute after playback
         _mixer.MutePlayback("Speaker");
         _mixer.MutePlayback("Master");
 
-        // Log the playback
         var volumeText = softvolDb > 0
             ? $"{volume}% (mixer {mixerPercent}% + softvol +{softvolDb:F2} dB)"
             : $"{volume}%";
@@ -158,7 +153,6 @@ public sealed class AudioPlaybackService : IAudioPlaybackService
                 remainingBytes -= bytesRead;
             }
 
-            // Add delay between iterations (except after the last one)
             if (iteration + 1 < repeatCount && delayMs > 0)
             {
                 Thread.Sleep(delayMs);

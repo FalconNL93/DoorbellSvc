@@ -119,7 +119,7 @@ public static class AudioFileManager
             var extension = Path.GetExtension(filePath).ToLowerInvariant();
             if (extension == ".wav")
             {
-                continue; // Skip WAV files
+                continue;
             }
 
             total++;

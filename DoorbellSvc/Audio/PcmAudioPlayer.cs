@@ -1,4 +1,5 @@
 using DoorbellSvc.Configuration;
+using static DoorbellSvc.Audio.AlsaInterop;
 
 namespace DoorbellSvc.Audio;
 
@@ -26,8 +27,8 @@ public sealed class PcmAudioPlayer : IDisposable
 
         if (_pcmHandle != IntPtr.Zero)
         {
-            AlsaInterop.snd_pcm_drain(_pcmHandle);
-            AlsaInterop.snd_pcm_close(_pcmHandle);
+            snd_pcm_drain(_pcmHandle);
+            snd_pcm_close(_pcmHandle);
             _pcmHandle = IntPtr.Zero;
         }
 
@@ -51,13 +52,14 @@ public sealed class PcmAudioPlayer : IDisposable
         {
             fixed (byte* dataPtr = interleavedS16Data)
             {
-                var result = AlsaInterop.snd_pcm_writei(_pcmHandle, (IntPtr) dataPtr, frameCount);
-                if (result < 0)
+                var result = snd_pcm_writei(_pcmHandle, (IntPtr) dataPtr, frameCount);
+                if (result >= 0)
                 {
-                    // Try to recover from underrun
-                    AlsaInterop.snd_pcm_prepare(_pcmHandle);
-                    AlsaInterop.snd_pcm_writei(_pcmHandle, (IntPtr) dataPtr, frameCount);
+                    return;
                 }
+
+                snd_pcm_prepare(_pcmHandle);
+                snd_pcm_writei(_pcmHandle, (IntPtr) dataPtr, frameCount);
             }
         }
     }
@@ -65,26 +67,25 @@ public sealed class PcmAudioPlayer : IDisposable
     private void InitializePcm(string preferredDevice, int cardIndex)
     {
         var deviceName = preferredDevice;
-        var result = AlsaInterop.snd_pcm_open(out _pcmHandle, deviceName, AlsaInterop.SND_PCM_STREAM_PLAYBACK, 0);
+        var result = snd_pcm_open(out _pcmHandle, deviceName, SND_PCM_STREAM_PLAYBACK, 0);
 
         if (result < 0)
         {
-            // Fallback to hardware device
             deviceName = $"hw:{cardIndex},0";
-            result = AlsaInterop.snd_pcm_open(out _pcmHandle, deviceName, AlsaInterop.SND_PCM_STREAM_PLAYBACK, 0);
+            result = snd_pcm_open(out _pcmHandle, deviceName, SND_PCM_STREAM_PLAYBACK, 0);
         }
 
-        AlsaInterop.CheckResult(result, "snd_pcm_open");
+        CheckResult(result, "snd_pcm_open");
 
-        result = AlsaInterop.snd_pcm_set_params(_pcmHandle,
-            AlsaInterop.SND_PCM_FORMAT_S16_LE,
-            AlsaInterop.SND_PCM_ACCESS_RW_INTERLEAVED,
+        result = snd_pcm_set_params(_pcmHandle,
+            SND_PCM_FORMAT_S16_LE,
+            SND_PCM_ACCESS_RW_INTERLEAVED,
             DoorbellConfiguration.Channels,
             DoorbellConfiguration.SampleRate,
-            1, // soft_resample
+            1,
             DoorbellConfiguration.TargetLatencyUs);
 
-        AlsaInterop.CheckResult(result, "snd_pcm_set_params");
+        CheckResult(result, "snd_pcm_set_params");
 
         DeviceName = deviceName;
     }
