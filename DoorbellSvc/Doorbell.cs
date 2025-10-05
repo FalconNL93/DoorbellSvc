@@ -1,5 +1,8 @@
 // DoorbellService.cs
 // .NET 9 / C# 13 — single class w/ background logger that falls back to user-writable log dir.
+// Changes:
+// - ALSA DllImport now targets "libasound.so.2" (soname).
+// - PCM fallback is computed from DOORBELL_CARD at runtime (hw:<cardIndex>,0).
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -23,14 +26,12 @@ public sealed class DoorbellService
     private const int MaxRepeat = 50;
     private const int MaxDelayMs = 60_000;
     private const int MaxWavBuffer = 192_000; // bytes
-
     private const long MaxWavSize = 25L * 1024 * 1024;
 
     // ===== Static config (device/card may be set via env) =====
     private static readonly string SoundsDir = "/var/lib/doorbell/sounds";
     private static readonly string CacheDir = "/var/lib/doorbell/cache";
     private static readonly string DefaultPcmName = "doorbell_out"; // ALSA softvol PCM
-    private static readonly string FallbackPcmName = "hw:1,0";
     private static readonly string SoftvolCtrlName = "Doorbell Gain";
 
     // Socket path stays under /run (systemd). If running as a user without /run perms,
@@ -58,8 +59,7 @@ public sealed class DoorbellService
         var envDev = Environment.GetEnvironmentVariable("DOORBELL_DEVICE");
         _pcmName = string.IsNullOrWhiteSpace(envDev) ? DefaultPcmName : envDev;
 
-        _cardIndex = int.TryParse(Environment.GetEnvironmentVariable("DOORBELL_CARD"), out var ci) ? ci
-            : 1;
+        _cardIndex = int.TryParse(Environment.GetEnvironmentVariable("DOORBELL_CARD"), out var ci) ? ci : 1;
     }
 
     public void Run()
@@ -77,7 +77,7 @@ public sealed class DoorbellService
                 File.Delete(SockPath);
             }
 
-            _pcm = new PcmPlayer(_pcmName, FallbackPcmName);
+            _pcm = new PcmPlayer(_pcmName, _cardIndex);
             _mixer = new Mixer(_cardIndex);
 
             var ep = new UnixDomainSocketEndPoint(SockPath);
@@ -128,10 +128,11 @@ public sealed class DoorbellService
         var xdgState = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
         var xdgCache = Environment.GetEnvironmentVariable("XDG_CACHE_HOME");
 
-        var candidates = new List<string>();
-
-        // 1) /var/log/doorbelld
-        candidates.Add(Path.Combine(PreferredLogDir, LogFileName));
+        var candidates = new List<string>
+        {
+            // 1) /var/log/doorbelld
+            Path.Combine(PreferredLogDir, LogFileName)
+        };
 
         // 2) $XDG_STATE_HOME/doorbelld
         if (!string.IsNullOrWhiteSpace(xdgState))
@@ -911,13 +912,15 @@ public sealed class DoorbellService
     {
         private IntPtr _pcm = IntPtr.Zero;
 
-        public PcmPlayer(string preferred, string fallback)
+        public PcmPlayer(string preferred, int cardIndex)
         {
-            var name = IsPcmPresent(preferred) ? preferred : fallback;
+            var name = preferred;
             var rc = Alsa.snd_pcm_open(out _pcm, name, Alsa.SND_PCM_STREAM_PLAYBACK, 0);
-            if (rc < 0 && name != fallback)
+            if (rc < 0)
             {
-                rc = Alsa.snd_pcm_open(out _pcm, fallback, Alsa.SND_PCM_STREAM_PLAYBACK, 0);
+                // Dynamic fallback based on DOORBELL_CARD
+                name = $"hw:{cardIndex},0";
+                rc = Alsa.snd_pcm_open(out _pcm, name, Alsa.SND_PCM_STREAM_PLAYBACK, 0);
             }
 
             if (rc < 0)
@@ -946,24 +949,6 @@ public sealed class DoorbellService
                 _ = Alsa.snd_pcm_drain(_pcm);
                 _ = Alsa.snd_pcm_close(_pcm);
                 _pcm = IntPtr.Zero;
-            }
-        }
-
-        private static bool IsPcmPresent(string n)
-        {
-            if (string.IsNullOrWhiteSpace(n))
-            {
-                return false;
-            }
-
-            try
-            {
-                var list = File.ReadAllText("/proc/asound/pcm");
-                return list.Contains(n);
-            }
-            catch
-            {
-                return n.StartsWith("hw:");
             }
         }
 

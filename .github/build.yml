@@ -1,0 +1,87 @@
+name: Publish doorbelld (Linux x64 AOT)
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  publish-linux-x64-aot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install NativeAOT toolchain deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld zlib1g-dev ccache
+
+      # Cache the compiler output used by clang via ccache
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', 'DoorbellSvc.sln') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
+      - name: Setup .NET 9 (with NuGet cache)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            DoorbellSvc.sln
+            **/*.csproj
+            **/Directory.Packages.props
+            nuget.config
+
+      - name: Restore (solution)
+        run: dotnet restore DoorbellSvc.sln
+
+      # Adjust the csproj path below if your project file lives elsewhere.
+      - name: Publish NativeAOT (linux-x64, single-file, self-contained)
+        env:
+          # Speed up clang by routing through ccache
+          CC: "ccache clang"
+          CXX: "ccache clang++"
+          # Ensure lld is the linker used by clang
+          LD: "ld.lld"
+        run: |
+          dotnet publish ./DoorbellSvc/DoorbellSvc.csproj \
+            -c Release \
+            -r linux-x64 \
+            --self-contained true \
+            -p:PublishAot=true \
+            -p:PublishSingleFile=true \
+            -p:StripSymbols=true \
+            -p:DebugType=None \
+            -p:InvariantGlobalization=true \
+            -p:AssemblyName=doorbelld
+
+      - name: Show output
+        run: |
+          PUBLISH_DIR="./DoorbellSvc/bin/Release/net9.0/linux-x64/publish"
+          ls -lah "$PUBLISH_DIR"
+          file "$PUBLISH_DIR/doorbelld" || true
+          echo "PUBLISH_DIR=$PUBLISH_DIR" >> "$GITHUB_ENV"
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: doorbelld-linux-x64
+          path: ${{ env.PUBLISH_DIR }}/doorbelld
+          if-no-files-found: error
+
+      - name: Upload full publish folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: doorbelld-publish-linux-x64
+          path: ${{ env.PUBLISH_DIR }}/
+          if-no-files-found: error
