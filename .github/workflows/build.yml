@@ -1,0 +1,106 @@
+name: Publish doorbelld (Linux x64 AOT)
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04 # has clang/LLVM preinstalled
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Cache ccache (speed up clang/lld relinks for NativeAOT)
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', 'DoorbellSvc.sln') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
+      - name: Setup .NET 9 (with NuGet cache)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+          cache: true
+          cache-dependency-path: |
+            DoorbellSvc.sln
+            **/*.csproj
+            **/Directory.Packages.props
+            nuget.config
+
+      - name: Restore (solution)
+        run: dotnet restore DoorbellSvc.sln
+
+      - name: Publish
+        id: publish_nativeaot
+        env:
+          # Route clang via ccache; lld is the default linker on this image.
+          CC: "ccache clang"
+          CXX: "ccache clang++"
+        run: |
+          VERSION="1.0.${GITHUB_RUN_NUMBER}"
+          dotnet publish ./DoorbellSvc/DoorbellSvc.csproj \
+            -c Release \
+            -r linux-x64 \
+            --self-contained true \
+            -p:PublishAot=true \
+            -p:PublishSingleFile=true \
+            -p:StripSymbols=true \
+            -p:DebugType=None \
+            -p:InvariantGlobalization=true \
+            -p:AssemblyName=doorbelld \
+            -p:Version=$VERSION
+          PUBLISH_DIR="./DoorbellSvc/bin/Release/net9.0/linux-x64/publish"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "PUBLISH_DIR=$PUBLISH_DIR" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "publish_dir=$PUBLISH_DIR" >> $GITHUB_OUTPUT
+
+      - name: Show output
+        run: |
+          ls -lah "$PUBLISH_DIR"
+          file "$PUBLISH_DIR/doorbelld" || true
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: doorbelld-linux-x64
+          path: ${{ steps.publish_nativeaot.outputs.publish_dir }}/doorbelld
+          if-no-files-found: error
+
+      - name: Upload full publish folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: doorbelld-publish-linux-x64
+          path: ${{ steps.publish_nativeaot.outputs.publish_dir }}/
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.publish_nativeaot.outputs.version }}
+          name: doorbelld v${{ steps.publish_nativeaot.outputs.version }}
+          body: |
+            Automated release for doorbelld v${{ steps.publish_nativeaot.outputs.version }}.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.publish_nativeaot.outputs.publish_dir }}/doorbelld
+          tag_name: v${{ steps.publish_nativeaot.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
