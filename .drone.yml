@@ -39,25 +39,22 @@ steps:
 
 ---
 kind: pipeline
-type: exec
-name: build-windows
+type: docker
+name: build-on-runner3
 depends_on: [build-default]
-
-platform:
-  os: windows
-  arch: amd64
 
 trigger:
   event: [push, custom]
   branch: [master]
   ref: [refs/heads/master]
 
-# target the Windows Exec runner with label site:windows
+# 👇 singular 'node', must match ALL labels on the runner
 node:
   site: windows
 
-# runs directly on the Windows host (requires .NET SDK installed on that machine)
 steps:
   - name: who-am-i
+    image: alpine:3.20
     commands:
-      - 'powershell -NoLogo -Command "Write-Output \"DRONE_STAGE_MACHINE=$env:DRONE_STAGE_MACHINE\"; hostname"'
+      - echo "DRONE_STAGE_MACHINE=${DRONE_STAGE_MACHINE}"
+      - cat /proc/sys/kernel/hostname
