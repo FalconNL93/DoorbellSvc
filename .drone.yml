@@ -19,18 +19,14 @@ steps:
       - cat /proc/sys/kernel/hostname
 
   # --- NEW: quick GPU health check ---
-  - name: gpu-check
-    # CUDA base image includes nvidia-smi
-    image: nvidia/cuda:12.6.2-base-ubuntu22.04
-    environment:
-      # hint Docker/NVIDIA runtime; harmless if already defaulted
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    commands:
-      - echo "Checking NVIDIA devices..."
-      - ls -l /dev/nvidia* || true
-      - echo "nvidia-smi output:"
-      - nvidia-smi
-      - echo "Driver in kernel (if present):"
-      - cat /proc/driver/nvidia/version || true
+- name: gpu-check
+  image: nvidia/cuda:12.6.2-base-ubuntu22.04
+  environment:
+    NVIDIA_VISIBLE_DEVICES: all
+    NVIDIA_DRIVER_CAPABILITIES: compute,utility
+  commands:
+    - echo "Listing NVIDIA devices (if mapped):"
+    - ls -l /dev/nvidia* || true
+    - echo "Running nvidia-smi:"
+    - nvidia-smi
 
