@@ -9,8 +9,12 @@ platform:
 trigger:
   event:
     - push
+    - custom
+  # 'branch' applies to push; 'ref' works for custom/manual too
   branch:
     - master
+  ref:
+    - refs/heads/master
 
 steps:
   - name: dotnet-restore-and-build
