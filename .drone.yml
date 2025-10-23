@@ -1,0 +1,23 @@
+kind: pipeline
+type: docker
+name: build
+
+platform:
+  os: linux
+  arch: amd64
+
+trigger:
+  event:
+    - push
+  branch:
+    - master
+
+steps:
+  - name: dotnet-restore-and-build
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    environment:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    commands:
+      - dotnet --info
+      - dotnet restore DoorbellSvc.sln
+      - dotnet build DoorbellSvc.sln -c Release --no-restore
