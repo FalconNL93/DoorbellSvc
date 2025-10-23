@@ -19,14 +19,14 @@ steps:
       - cat /proc/sys/kernel/hostname
 
   # --- NEW: quick GPU health check ---
-- name: gpu-check
-  image: nvidia/cuda:12.6.2-base-ubuntu22.04
-  environment:
-    NVIDIA_VISIBLE_DEVICES: all
-    NVIDIA_DRIVER_CAPABILITIES: compute,utility
-  commands:
-    - echo "Listing NVIDIA devices (if mapped):"
-    - ls -l /dev/nvidia* || true
-    - echo "Running nvidia-smi:"
-    - nvidia-smi
+  - name: gpu-check
+    image: nvidia/cuda:12.6.2-base-ubuntu22.04
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    commands:
+      - echo "Listing NVIDIA devices (if mapped):"
+      - ls -l /dev/nvidia* || true
+      - echo "Running nvidia-smi:"
+      - nvidia-smi
 
