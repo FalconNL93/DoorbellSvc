@@ -1,54 +1,52 @@
----
-kind: pipeline
-type: docker
-name: build-default
+# ---
+# kind: pipeline
+# type: docker
+# name: build-default
 
-trigger:
-  event: [push, custom]
-  branch: [master]
-  ref: [refs/heads/master]
+# trigger:
+#   event: [push, custom]
+#   branch: [master]
+#   ref: [refs/heads/master]
 
-steps:
-  - name: who-am-i
-    image: alpine:3.20
-    commands:
-      - echo "DRONE_STAGE_MACHINE=${DRONE_STAGE_MACHINE}"
-      - cat /proc/sys/kernel/hostname
+# steps:
+#   - name: who-am-i
+#     image: alpine:3.20
+#     commands:
+#       - echo "DRONE_STAGE_MACHINE=${DRONE_STAGE_MACHINE}"
+#       - cat /proc/sys/kernel/hostname
 
----
-kind: pipeline
-type: docker
-name: build-on-runner2
-depends_on: [build-default]
+# ---
+# kind: pipeline
+# type: docker
+# name: build-on-runner2
+# depends_on: [build-default]
 
-trigger:
-  event: [push, custom]
-  branch: [master]
-  ref: [refs/heads/master]
+# trigger:
+#   event: [push, custom]
+#   branch: [master]
+#   ref: [refs/heads/master]
 
-# 👇 singular 'node', must match ALL labels on the runner
-node:
-  site: app2
+# # 👇 singular 'node', must match ALL labels on the runner
+# node:
+#   site: app2
 
-steps:
-  - name: who-am-i
-    image: alpine:3.20
-    commands:
-      - echo "DRONE_STAGE_MACHINE=${DRONE_STAGE_MACHINE}"
-      - cat /proc/sys/kernel/hostname
+# steps:
+#   - name: who-am-i
+#     image: alpine:3.20
+#     commands:
+#       - echo "DRONE_STAGE_MACHINE=${DRONE_STAGE_MACHINE}"
+#       - cat /proc/sys/kernel/hostname
 
 ---
 kind: pipeline
 type: docker
 name: build-on-runner3
-depends_on: [build-default]
 
 trigger:
   event: [push, custom]
   branch: [master]
   ref: [refs/heads/master]
 
-# 👇 singular 'node', must match ALL labels on the runner
 node:
   site: windows
 
@@ -58,3 +56,20 @@ steps:
     commands:
       - echo "DRONE_STAGE_MACHINE=${DRONE_STAGE_MACHINE}"
       - cat /proc/sys/kernel/hostname
+
+  # --- NEW: quick GPU health check ---
+  - name: gpu-check
+    # CUDA base image includes nvidia-smi
+    image: nvidia/cuda:12.6.2-base-ubuntu22.04
+    environment:
+      # hint Docker/NVIDIA runtime; harmless if already defaulted
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    commands:
+      - echo "Checking NVIDIA devices..."
+      - ls -l /dev/nvidia* || true
+      - echo "nvidia-smi output:"
+      - nvidia-smi
+      - echo "Driver in kernel (if present):"
+      - cat /proc/driver/nvidia/version || true
+
