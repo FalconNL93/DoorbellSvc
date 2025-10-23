@@ -1,20 +1,48 @@
+---
 kind: pipeline
 type: docker
-name: build
+name: build-default
 
 platform:
   os: linux
   arch: amd64
 
 trigger:
-  event:
-    - push
-    - custom
-  # 'branch' applies to push; 'ref' works for custom/manual too
-  branch:
-    - master
-  ref:
-    - refs/heads/master
+  event: [push, custom]
+  branch: [master]
+  ref: [refs/heads/master]
+
+steps:
+  - name: dotnet-restore-and-build
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    environment:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    commands:
+      - dotnet --info
+      - dotnet restore DoorbellSvc.sln
+      - dotnet build DoorbellSvc.sln -c Release --no-restore
+
+---
+kind: pipeline
+type: docker
+name: build-on-runner2
+
+# run this pipeline only after the first one succeeds
+depends_on:
+  - build-default
+
+platform:
+  os: linux
+  arch: amd64
+
+trigger:
+  event: [push, custom]
+  branch: [master]
+  ref: [refs/heads/master]
+
+# target runner2 by label (make sure the runner has DRONE_RUNNER_LABELS=site:app2)
+nodes:
+  site: app2
 
 steps:
   - name: dotnet-restore-and-build
